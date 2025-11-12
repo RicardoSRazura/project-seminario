@@ -104,7 +104,7 @@ export default function PartidoPage({ params }: { params: { slug: string } }) {
     return (
         <>
             {/* Logo + nombre fuera del div centrado */}
-            <div className="w-full max-w-5xl mx-auto px-8">
+            <div className="w-full max-w-5xl mx-auto px-8 text-black">
                 <div className="flex items-center gap-4">
                     <Image src={partido.logo} alt={partido.nombre} width={80} height={80} />
                     <h1 className="text-3xl font-bold">
@@ -115,7 +115,7 @@ export default function PartidoPage({ params }: { params: { slug: string } }) {
                 <hr className="border-black border-t-2 mt-4" />
             </div>
             {/* Contenido centrado */}
-            <div className="py-9 px-5 flex flex-col gap-12 items-center">
+            <div className="py-9 px-5 flex flex-col gap-12 items-center text-black">
                 <div className="max-w-4xl">
                     {/* Subtítulo centrado */}
                     <h2 className="text-2xl font-bold text-center mb-6">SOBRE NOSOTROS</h2>

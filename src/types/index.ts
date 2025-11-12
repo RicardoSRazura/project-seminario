@@ -1,22 +1,25 @@
 export type Partido = {
-    id_partido: number;
+    id_partido: string;
     nombre_partido: string;
-    logo: string;
+    logo?: string | null;
+    auth_users_id: string;
   };
   
   export type Candidato = {
-    id_candidato: number;
+    id_candidato: string;
     id_usuario: string;
-    id_partido: number;
+    id_partido: string;
     nombre: string;
+    apellido: string | null;
     cargo_buscado: string;
+    imagen_url?: string | null;
   };
   
   export type Objetivo = {
     id_objetivo: number;
     descripcion: string;
-    id_partido?: number;
-    id_candidato?: number;
+    id_partido?: string;
+    id_candidato?: string | null;
   };
   
   export type Presupuesto = {
@@ -24,14 +27,14 @@ export type Partido = {
     cantidad: number;
     descripcion: string;
     fecha: Date;
-    id_partido: number;
-    id_candidato?: number;
+    id_partido: string;
+    id_candidato?: string;
   };
   
   export type Propuesta = {
     id_propuesta: number;
-    id_partido: number;
-    id_candidato: number;
+    id_partido: string | null;
+    id_candidato: string | null;
     descripcion: string;
     categoria: string;
     presupuesto_necesario: number;
@@ -40,8 +43,8 @@ export type Partido = {
   export type Historia = {
     id_historia: number;
     descripcion: string;
-    id_partido: number;
-    id_candidato?: number;
+    id_partido: string;
+    id_candidato?: string;
   };
   
   export type Invitacion = {
@@ -49,17 +52,17 @@ export type Partido = {
     email: string;
     token: string;
     tipo: string;
-    id_partido: number;
+    id_partido: string | null;
     usada: boolean;
-    fecha_expiracion: Date;
+    fecha_expiracion: string;
   };
   
   export type Profile = {
-    id: string;
+    id_usuario: string;
     nombre: string;
+    apellido?: string | null;
     rol: string;
-    id_partido: number;
-    apellido: string;
+    id_partido: string;
   };
   
   export type Database = {

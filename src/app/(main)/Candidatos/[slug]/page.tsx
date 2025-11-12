@@ -43,7 +43,7 @@ export default function CandidatoPage({ params }: { params: { slug: string } }) 
   if (!candidato) return notFound();
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-6 text-black">
       {/* Cuadro de información principal */}
       <div className="flex border rounded-md overflow-hidden">
         {/* Imagen */}

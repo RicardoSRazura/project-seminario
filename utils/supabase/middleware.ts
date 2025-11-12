@@ -2,8 +2,10 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
+  const response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
   })
 
   const supabase = createServerClient(
@@ -11,24 +13,64 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
+        get(name) {
+          return request.cookies.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
+        set(name, value, options) {
+          // If the cookie is being deleted, get the original to preserve its options
+          if (!value) {
+            const oldCookie = request.cookies.get(name)
+            if (oldCookie) {
+              response.cookies.set({
+                name,
+                value: '',
+                ...options,
+                maxAge: 0,  // Force the cookie to expire
+              })
+            }
+            return
+          }
+          response.cookies.set({
+            name,
+            value,
+            ...options,
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+        },
+        remove(name, options) {
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+            maxAge: 0,  // Force the cookie to expire
+          })
         },
       },
     }
   )
 
-  // refreshing the auth token
-  await supabase.auth.getUser()
+  // Refresh the session
+  const { data: { session } } = await supabase.auth.getSession()
 
-  return supabaseResponse
+  // If there is no session but there are auth cookies, attempt to clear them
+  if (!session) {
+    const authCookies = [
+      'sb-access-token', 
+      'sb-refresh-token', 
+      'sb-auth-token', 
+      // Add any other Supabase auth cookies that might exist
+    ]
+    
+    authCookies.forEach(cookieName => {
+      if (request.cookies.has(cookieName)) {
+        response.cookies.set({
+          name: cookieName,
+          value: '',
+          maxAge: 0,
+          path: '/',
+        })
+      }
+    })
+  }
+
+  return response
 }

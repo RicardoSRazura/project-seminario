@@ -1,47 +1,83 @@
 "use client"
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { usePropuestas } from '@/hooks/usePropuestas';
+import { Propuesta } from '@/types';
 
-export default function Propuestas() {
-    const [propuesta, setPropuesta] = useState("");
-    const [categoria, setCategoria] = useState("");
-    const [presupuestoNecesario, setPresupuestoNecesario] = useState("");
-    const [propuestas, setPropuestas] = useState<Array<{
-        id: number,
-        propuesta: string,
-        categoria: string,
-        presupuestoNecesario: string
-    }>>([]);
+interface PropuestasProps {
+    partidoId?: string;  // Cambiado a string para UUID
+    candidatoId?: string; // Cambiado a string para UUID
+}
 
-    const handleSubmit = (e: React.FormEvent) => {
+export default function Propuestas({partidoId, candidatoId}: PropuestasProps) {
+   const [descripcion, setDescripcion] = useState("");
+   const [categoria, setCategoria] = useState("");
+   const [presupuestoNecesario, setPresupuestoNecesario] = useState("");
+
+    // Utilizamos el hook de usePropuestas
+    const {
+        propuestas,
+        loading, 
+        error,
+        createPropuesta,
+        deletePropuesta,
+    } = usePropuestas(partidoId, candidatoId);
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        if (propuesta.trim() && categoria.trim()) {
-            const nuevaPropuesta = {
-                id: Date.now(),
-                propuesta,
-                categoria,
-                presupuestoNecesario
-            };
-            
-            setPropuestas([...propuestas, nuevaPropuesta]);
-            
-            // Limpiar el formulario
-            setPropuesta("");
-            setCategoria("");
-            setPresupuestoNecesario("");
+
+        if(descripcion.trim() && categoria.trim()) {
+            try {
+                // Verificamos que al menos uno de los IDs exista
+                if (!partidoId && !candidatoId) {
+                    throw new Error("Se requiere un ID de partido o candidato");
+                }
+
+                // Creamos la nueva propuesta usando el servicio
+                const nuevaPropuesta: Omit<Propuesta, 'id_propuesta'> = {
+                    id_partido: partidoId || null,  // Aseguramos que es string
+                    id_candidato: candidatoId || null, // Aseguramos que es string
+                    descripcion: descripcion,
+                    categoria: categoria,
+                    presupuesto_necesario: presupuestoNecesario ? parseFloat(presupuestoNecesario) : 0
+                };
+
+                await createPropuesta(nuevaPropuesta);
+
+                // Limpiamos el formulario
+                setDescripcion("");
+                setCategoria("");
+                setPresupuestoNecesario("");
+            } catch (err) {
+                console.error("Error al guardar la propuesta:", err);
+            }
+        }
+    };
+    
+    const handleDelete = async (id: number) => {
+        try {
+            await deletePropuesta(id);
+        } catch (err) {
+            console.error("Error al eliminar la propuesta:", err);
+            // Aquí puede ir la lógica para mostrar una notificación
         }
     };
 
     return (
         <div className="p-4">
             <h2 className="text-2xl font-bold mb-8">Propuestas</h2>
+
+            {error && (
+                <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
+                    {error}
+                </div>
+            )}
             
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Propuesta:</label>
                     <textarea 
-                        value={propuesta}
-                        onChange={(e) => setPropuesta(e.target.value)}
+                        value={descripcion}
+                        onChange={(e) => setDescripcion(e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded h-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Describa su propuesta..."
                         required
@@ -63,7 +99,7 @@ export default function Propuestas() {
                 <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Presupuesto necesario:</label>
                     <input 
-                        type="text"
+                        type="number"
                         value={presupuestoNecesario}
                         onChange={(e) => setPresupuestoNecesario(e.target.value)}
                         className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -74,9 +110,10 @@ export default function Propuestas() {
                 <div className="flex justify-end mt-4">
                     <button 
                         type="submit"
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                        
+                        className={`px-4 py-2 ${loading || (!partidoId && !candidatoId) ? 'bg-gray-400' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded transition`}
                     >
-                        Guardar Propuesta
+                        {loading ? 'Guardando...' : 'Guardar Propuesta'}
                     </button>
                 </div>
             </form>
@@ -86,22 +123,23 @@ export default function Propuestas() {
                     <h3 className="text-lg font-medium mb-4">Propuestas guardadas:</h3>
                     <div className="space-y-4">
                         {propuestas.map((item) => (
-                            <div key={item.id} className="p-4 border rounded-lg bg-gray-50">
+                            <div key={item.id_propuesta} className="p-4 border rounded-lg bg-gray-50">
                                 <div className="flex justify-between">
                                     <h4 className="font-medium">{item.categoria}</h4>
                                     <button 
-                                        onClick={() => setPropuestas(propuestas.filter(p => p.id !== item.id))}
+                                        onClick={() => handleDelete(item.id_propuesta)}
                                         className="text-red-500 hover:text-red-700"
+                                        disabled={loading}
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                                         </svg>
                                     </button>
                                 </div>
-                                <p className="mt-2 text-gray-700">{item.propuesta}</p>
-                                {item.presupuestoNecesario && (
+                                <p className="mt-2 text-gray-700">{item.descripcion}</p>
+                                {item.presupuesto_necesario > 0 && (
                                     <p className="mt-1 text-sm text-gray-500">
-                                        Presupuesto: {item.presupuestoNecesario}
+                                        Presupuesto: {item.presupuesto_necesario}
                                     </p>
                                 )}
                             </div>

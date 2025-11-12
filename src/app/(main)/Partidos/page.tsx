@@ -6,7 +6,7 @@ export default function PartidosPage() {
 
       
       {/* Contenedor de tarjetas */}
-      <div className="flex flex-row overflow-x-auto space-x-4 p-4">
+      <div className="flex flex-row overflow-x-auto space-x-4 p-4 text-black">
         <PartyCard 
           name="PAN"
           description="El Partido Acción Nacional (PAN)"

@@ -4,85 +4,95 @@ import { useRouter } from 'next/navigation';
 import Modal from './Modal';
 import PrincipleButton from "./PrincipleButton";
 import InputComponent from './InputComponent';
-import Presupuesto from './tabs/Presupuesto';
+import Presupuesto from './tabs/Presupuestos';
 import Visuales from './tabs/Visuales';
 import InformacionGeneral from './tabs/InformacionGeneral';
 import Propuestas from './tabs/Propuestas';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserProfile } from '@/hooks/useUserProfile';
+import { createInvitation } from '@/lib/services/invitaciones';
 
 export default function ProfilePanel() {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [invitationLink, setInvitationLink] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'perfil' | 'presupuesto' | 'visuales' | 'informacion' | 'propuestas'>('perfil');
+
+    const {user, role, roleLoading} = useAuth();
+    const { profile } = useUserProfile();
+    const [email, setEmail] = useState('');
+    const [tipo, setTipo] = useState('');
+    const [invitationLoading, setInvitationLoading] = useState(false);
+    const [invitationLink, setInvitationLink] = useState('');
+    const [error, setError] = useState<{ message: string } | null>(null);
 
     const router = useRouter();
     
-    // Simulación de estas funciones - reemplazar con las implementaciones reales
-    const useUserRole = () => {
-        return { 
-            role: "admin", 
-            user: { id: "123" }, 
-            loading: false 
-        };
-    };
-
-    const useInvitationForm = (userId: string) => {
-        const [email, setEmail] = useState("");
-        const [tipo, setTipo] = useState("");
-        const [loading, setLoading] = useState(false);
-        const [error, setError] = useState<{message: string} | null>(null);
-
-        const handleSubmit = async () => {
-            setLoading(true);
-            // Simulación de API call
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            setLoading(false);
-            
-            // Simulación de respuesta exitosa
-            return { 
-                data: [{ token: "invitation-token-123" }], 
-                error: null 
-            };
-        };
-
-        return {
-            email, tipo,
-            setEmail, setTipo,
-            handleSubmit,
-            loading, error
-        };
-    };
-
-    const generateInvitationLink = (token: string) => {
-        return `https://ejemplo.com/invitacion/${token}`;
-    };
-
-    const { role, user, loading: roleLoading } = useUserRole();
-
-    const {
-        email, tipo,
-        setEmail, setTipo,
-        handleSubmit,
-        loading: invitationLoading, error
-    } = useInvitationForm(user?.id ?? "");
-
+    // Función para manejar el envío de invitación
     const handleInvitationSubmit = async () => {
-        const { data, error } = await handleSubmit();
-        if (data) {
-            const token = data[0].token; 
-            const link = generateInvitationLink(token);
-            setInvitationLink(link); 
-        } else {
-            console.error(error);
+        // Validaciones básicas
+        if (!email) {
+            setError({ message: 'El correo electrónico es obligatorio' });
+            return;
+        }
+        
+        if (!tipo && role === 'admin') {
+            setError({ message: 'Debes seleccionar un rol' });
+            return;
+        }
+        
+        // Si es un partido, solo puede invitar candidatos
+        const invitationType = role === 'partido' ? 'candidato' : tipo;
+        
+        try {
+            setInvitationLoading(true);
+            setError(null);
+
+            // Obtener el ID del partido según el rol
+            let partidoId = null;
+            if (role === 'partido' && profile) {
+                partidoId = profile.id_partido;
+            }
+            
+            // Crear invitación
+            const result = await createInvitation(email, invitationType, partidoId);
+            
+            if (!result.success) {
+                setError({ message: result.message || 'Error al crear la invitación' });
+                // Si ya existe una invitación y tenemos el link, lo mostramos de todas formas
+                if (result.link) {
+                    setInvitationLink(result.link);
+                }
+                return;
+            }
+            
+            // Mostrar el enlace generado
+            if (result.link) {
+                setInvitationLink(result.link);
+                console.log("Enlace generado:", result.link); // Añadir este log para depurar
+            }
+            
+            // Limpiar el formulario
+            setEmail('');
+            setTipo('');
+            
+        } catch (error) {
+            console.error('Error al enviar invitación:', error);
+            setError({ message: 'Ocurrió un error al procesar la invitación' });
+        } finally {
+            setInvitationLoading(false);
         }
     };
 
+    // Función para copiar al portapapeles
     const copyToClipboard = () => {
-        if (invitationLink) {
-            navigator.clipboard.writeText(invitationLink).then(() => {
-                alert("Enlace copiado al portapapeles");
+        navigator.clipboard.writeText(invitationLink)
+            .then(() => {
+                alert('Enlace copiado al portapapeles');
+            })
+            .catch(err => {
+                console.error('Error al copiar: ', err);
             });
-        }
     };
+    
 
     // Sidebar item component
     const SidebarItem = ({ title, isActive, onClick }: { title: string, isActive: boolean, onClick: () => void }) => (
@@ -98,7 +108,13 @@ export default function ProfilePanel() {
     const renderContent = () => {
         switch (activeTab) {
             case 'propuestas':
-                return <Propuestas />;
+                return (
+                    <Propuestas
+                        partidoId={profile?.id_partido ?? undefined}
+                        candidatoId={profile?.id_candidato ?? undefined}
+                    />
+                );
+                
             case 'presupuesto':
                 return <Presupuesto />;
             case 'visuales':
@@ -109,17 +125,28 @@ export default function ProfilePanel() {
             default:
                 return (
                     <div className="mt-10 space-y-4 text-gray-800 text-sm">
-                        <div className="flex justify-between items-center">
-                            <span><strong>Nombre de usuario:</strong> Pepe Perez</span>
-                            <button className="text-blue-600 hover:underline">Cambiar Nombre</button>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span><strong>Correo Electrónico:</strong> example@example.com</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span><strong>Contraseña:</strong> *******************</span>
-                            <button className="text-blue-600 hover:underline">Cambiar Contraseña</button>
-                        </div>
+                        {profile && (
+                            <>
+                                <div className="flex justify-between items-center">
+                                    <p><strong>Nombre de usuario:</strong>{profile.nombre} {profile.apellido}</p>
+                                    <button className="text-blue-600 hover:underline">Cambiar Nombre</button>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <p><strong>Rol:</strong>{role}</p>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <p><strong>Correo Electrónico:</strong> {user?.email}</p>
+                                </div>
+                                
+                                <div className="flex justify-between items-center">
+                                    <p><strong>Contraseña:</strong> *******************</p>
+                                    <button className="text-blue-600 hover:underline">Cambiar Contraseña</button>
+                                </div>
+                            </>
+                        )}
+                        
                     </div>
                 );
         }
@@ -133,15 +160,15 @@ export default function ProfilePanel() {
                     <h3>Transparencia <br/>Política</h3>
                 </div>
 
-                <div className="p-4 border-t mt-auto">
+                <div className="p-4 mt-auto">
                     <button
                         onClick={() => router.push('/')}
-                        className="flex items-center text-sm text-blue-600 hover:underline"
+                        className="flex items-center text-mds text-black font-bold hover:underline"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-9 9 9M4 10v10h4v-6h8v6h4V10" />
                         </svg>
-                        Volver al Inicio
+                        Home
                     </button>
                 </div>
 
@@ -233,17 +260,13 @@ export default function ProfilePanel() {
                                 <PrincipleButton title="Cambiar Foto de Perfil" className="bg-gray-500 rounded-sm cursor-pointer"/>
                             </div>
                             <div className="flex space-x-5">
-                                <PrincipleButton 
-                                    title="Invitar Partido" 
-                                    className="bg-green-500 rounded-sm font-bold text-sm cursor-pointer"
-                                    onClick={() => {
-                                        setIsModalOpen(true)
-                                        setInvitationLink(null);
-                                    }}
-                                /> 
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-                                </svg>
+                                {(role === 'partido' || role === 'admin') && (
+                                    <PrincipleButton 
+                                        title={role === 'partido' ? 'Invitar Candidato' : 'Invitar Partido/Candidato'} 
+                                        className='mt-4'
+                                        onClick={() => setIsModalOpen(true)}
+                                    />
+                                )}
                             </div>
                         </div>
                     )}

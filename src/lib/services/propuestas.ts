@@ -6,7 +6,7 @@ const supabase = createClient();
 
 export const propuestasService = {
   // Obtener propuestas por candidato
-  async getPropuestasByCandidato(candidatoId: number): Promise<Propuesta[]> {
+  async getPropuestasByCandidato(candidatoId: string): Promise<Propuesta[]> {
     const { data, error } = await supabase
       .from('propuestas')
       .select('*')
@@ -21,7 +21,7 @@ export const propuestasService = {
   },
 
   // Obtener propuestas por partido
-  async getPropuestasByPartido(partidoId: number): Promise<Propuesta[]> {
+  async getPropuestasByPartido(partidoId: string): Promise<Propuesta[]> {
     const { data, error } = await supabase
       .from('propuestas')
       .select('*')
@@ -98,7 +98,7 @@ export const propuestasService = {
   },
 
   // Obtener propuestas por categoría
-  async getPropuestasByCategoria(partidoId: number, categoria: string): Promise<Propuesta[]> {
+  async getPropuestasByCategoria(partidoId: string, categoria: string): Promise<Propuesta[]> {
     const { data, error } = await supabase
       .from('propuestas')
       .select('*')
